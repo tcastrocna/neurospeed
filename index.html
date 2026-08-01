@@ -1,0 +1,320 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NeuroSpeed - 高级反应力训练</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: white;
+            touch-action: manipulation;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        #game-grid {
+            display: grid;
+            gap: 8px;
+            width: 100%;
+            height: 100%;
+            padding: 12px;
+            box-sizing: border-box;
+        }
+
+        .block {
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.1s, filter 0.2s;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .block:active { transform: scale(0.92); }
+        
+        /* 动画效果 */
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            70% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+        /* 颜色定义 - 用于干扰和 targets */
+        .c-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: 2px solid #60a5fa; }
+        .c-red { background: linear-gradient(135deg, #ef4444, #b91c1c); border: 2px solid #f87171; }
+        .c-green { background: linear-gradient(135deg, #22c55e, #15803d); border: 2px solid #4ade80; }
+        .c-yellow { background: linear-gradient(135deg, #eab308, #a16207); border: 2px solid #facc15; }
+        .c-purple { background: linear-gradient(135deg, #a855f7, #7e22ce); border: 2px solid #c084fc; }
+        .c-orange { background: linear-gradient(135deg, #f97316, #c2410c); border: 2px solid #fb923c; }
+        .c-cyan { background: linear-gradient(135deg, #06b6d4, #0e7490); border: 2px solid #67e8f9; }
+        
+        /* 干扰块稍微暗一点或透明度不同，增加辨识难度 */
+        .distractor { opacity: 0.85; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-center p-4">
+
+    <!-- 顶部状态栏 -->
+    <div class="w-full max-w-md flex justify-between items-center mb-4 z-20 px-2">
+        <div class="flex items-center gap-2">
+            <i class="fa-solid fa-brain text-indigo-400 text-xl animate-pulse"></i>
+            <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">NeuroSpeed</h1>
+        </div>
+        <div class="flex gap-3 text-sm font-mono">
+            <span class="bg-slate-800 px-3 py-1 rounded-lg border border-slate-700">Nível: <span id="level-display" class="text-white font-bold">1</span></span>
+            <span class="bg-slate-800 px-3 py-1 rounded-lg border border-slate-700">Média: <span id="avg-display" class="text-indigo-300">--</span>ms</span>
+        </div>
+    </div>
+
+    <!-- 游戏主区域 -->
+    <div class="relative w-full max-w-md aspect-[3/4] md:aspect-square glass-panel rounded-3xl overflow-hidden flex flex-col shadow-2xl">
+        
+        <!-- 指令条 -->
+        <div class="absolute top-0 w-full p-4 bg-gradient-to-b from-slate-900/95 to-transparent z-10 flex justify-between items-center pointer-events-none">
+            <div class="text-xs text-slate-400 uppercase tracking-widest">Objetivo</div>
+            <div id="target-instruction" class="px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-sm font-bold shadow-lg transition-all duration-300">
+                Prepare-se...
+            </div>
+        </div>
+
+        <!-- 网格容器 -->
+        <div id="game-grid"></div>
+
+        <!-- 遮罩层 (开始/结束/提示) -->
+        <div id="overlay" class="absolute inset-0 z-30 bg-slate-900/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center transition-opacity duration-300">
+            <div id="overlay-icon" class="text-6xl mb-6 text-indigo-500 drop-shadow-lg">
+                <i class="fa-solid fa-play"></i>
+            </div>
+            <h2 id="overlay-title" class="text-3xl font-bold mb-3 text-white">Treino de Reflexo</h2>
+            <p id="overlay-desc" class="text-slate-400 mb-8 max-w-xs leading-relaxed">
+                Blocos coloridos vão aparecer.<br>
+                Clique <strong>apenas</strong> na cor solicitada o mais rápido possível.
+            </p>
+            
+            <!-- 难度选择 -->
+            <div class="grid grid-cols-3 gap-3 w-full max-w-xs mb-8">
+                <button onclick="setDiff('easy')" class="diff-btn p-3 rounded-xl bg-slate-800 border border-slate-700 hover:border-green-500 hover:bg-green-500/10 transition group">
+                    <div class="text-green-400 font-bold">Fácil</div>
+                    <div class="text-[10px] text-slate-500 mt-1">Poucos blocos</div>
+                </button>
+                <button onclick="setDiff('medium')" class="diff-btn p-3 rounded-xl bg-slate-800 border border-slate-700 hover:border-yellow-500 hover:bg-yellow-500/10 transition group ring-2 ring-indigo-500 bg-slate-700">
+                    <div class="text-yellow-400 font-bold">Médio</div>
+                    <div class="text-[10px] text-slate-500 mt-1">Mais cores</div>
+                </button>
+                <button onclick="setDiff('hard')" class="diff-btn p-3 rounded-xl bg-slate-800 border border-slate-700 hover:border-red-500 hover:bg-red-500/10 transition group">
+                    <div class="text-red-400 font-bold">Difícil</div>
+                    <div class="text-[10px] text-slate-500 mt-1">Muita confusão</div>
+                </button>
+            </div>
+
+            <button id="start-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 px-12 rounded-full shadow-lg shadow-indigo-500/40 transition transform hover:scale-105 active:scale-95 text-lg">
+                Iniciar Treino
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 游戏配置与状态
+        const COLORS = [
+            { id: 'blue', class: 'c-blue', name: 'AZUL' },
+            { id: 'red', class: 'c-red', name: 'VERMELHO' },
+            { id: 'green', class: 'c-green', name: 'VERDE' },
+            { id: 'yellow', class: 'c-yellow', name: 'AMARELO' },
+            { id: 'purple', class: 'c-purple', name: 'ROXO' },
+            { id: 'orange', class: 'c-orange', name: 'LARANJA' },
+            { id: 'cyan', class: 'c-cyan', name: 'CIANO' }
+        ];
+
+        const SETTINGS = {
+            easy: { grid: 2, colors: 2, distractors: 0 },
+            medium: { grid: 3, colors: 4, distractors: 2 },
+            hard: { grid: 4, colors: 6, distractors: 4 }
+        };
+
+        let state = {
+            level: 1,
+            diff: 'medium',
+            isPlaying: false,
+            startTime: 0,
+            targetColor: null,
+            times: [],
+            errors: 0
+        };
+
+        // DOM 元素
+        const gridEl = document.getElementById('game-grid');
+        const overlay = document.getElementById('overlay');
+        const startBtn = document.getElementById('start-btn');
+        const instructionEl = document.getElementById('target-instruction');
+        const levelDisplay = document.getElementById('level-display');
+        const avgDisplay = document.getElementById('avg-display');
+        const diffBtns = document.querySelectorAll('.diff-btn');
+
+        // 初始化
+        function setDiff(d) {
+            state.diff = d;
+            diffBtns.forEach(btn => {
+                btn.classList.remove('ring-2', 'ring-indigo-500', 'bg-slate-700');
+                if(btn.getAttribute('onclick').includes(d)) {
+                    btn.classList.add('ring-2', 'ring-indigo-500', 'bg-slate-700');
+                }
+            });
+        }
+
+        startBtn.addEventListener('click', () => {
+            if (!state.isPlaying) startGame();
+        });
+
+        function startGame() {
+            state.level = 1;
+            state.times = [];
+            state.errors = 0;
+            updateStats();
+            nextLevel();
+        }
+
+        function nextLevel() {
+            state.isPlaying = true;
+            overlay.classList.add('opacity-0', 'pointer-events-none');
+            
+            const config = SETTINGS[state.diff];
+            // 随着等级提升，网格可能变大（简单实现：固定网格，增加颜色复杂度）
+            let currentGrid = config.grid;
+            if (state.level > 5 && state.diff !== 'hard') currentGrid = 4; // 中级后期变大
+            
+            const totalBlocks = currentGrid * currentGrid;
+            
+            // 确定本关使用的颜色池
+            const pool = COLORS.slice(0, Math.min(COLORS.length, config.colors + Math.floor(state.level/3)));
+            state.targetColor = pool[Math.floor(Math.random() * pool.length)];
+            
+            // 更新UI指令
+            levelDisplay.innerText = state.level;
+            instructionEl.innerHTML = `<span class="${state.targetColor.class.replace('c-', 'text-')} font-black drop-shadow-md">${state.targetColor.name}</span>`;
+            
+            renderGrid(currentGrid, totalBlocks, pool);
+            state.startTime = performance.now();
+        }
+
+        function renderGrid(size, total, colorPool) {
+            gridEl.innerHTML = '';
+            gridEl.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+            
+            const targetIndex = Math.floor(Math.random() * total);
+            
+            for (let i = 0; i < total; i++) {
+                const block = document.createElement('div');
+                block.className = 'block animate-pop';
+                
+                let colorClass;
+                let isTarget = (i === targetIndex);
+                
+                if (isTarget) {
+                    colorClass = state.targetColor.class;
+                } else {
+                    // 关键改进：干扰块也是彩色的！
+                    const distractorColors = colorPool.filter(c => c.id !== state.targetColor.id);
+                    const randomColor = distractorColors[Math.floor(Math.random() * distractorColors.length)] || COLORS[0];
+                    colorClass = randomColor.class;
+                    block.classList.add('distractor'); // 标记为干扰项，样式上可以微调
+                }
+                
+                block.classList.add(colorClass);
+                block.style.animationDelay = `${Math.random() * 0.2}s`;
+                
+                // 绑定事件
+                const handleTap = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    checkClick(isTarget, block);
+                };
+                
+                block.addEventListener('mousedown', handleTap);
+                block.addEventListener('touchstart', handleTap);
+                
+                gridEl.appendChild(block);
+            }
+        }
+
+        function checkClick(isTarget, el) {
+            if (!state.isPlaying) return;
+            
+            const now = performance.now();
+            const reaction = Math.round(now - state.startTime);
+            
+            if (isTarget) {
+                // 成功
+                state.times.push(reaction);
+                el.style.transform = 'scale(1.2) brightness(1.5)';
+                el.style.zIndex = '10';
+                instructionEl.innerHTML = `<i class="fa-solid fa-check text-green-400"></i> ${reaction}ms`;
+                
+                state.isPlaying = false;
+                setTimeout(() => {
+                    if (state.level < 10) {
+                        state.level++;
+                        nextLevel();
+                    } else {
+                        finishGame(reaction);
+                    }
+                }, 500);
+            } else {
+                // 失败 - 干扰项点击
+                state.errors++;
+                el.style.opacity = '0.2';
+                el.style.transform = 'scale(0.8)';
+                navigator.vibrate?.(150);
+                instructionEl.innerHTML = `<i class="fa-solid fa-xmark text-red-500"></i> Errou!`;
+                updateStats();
+            }
+        }
+
+        function finishGame(lastTime) {
+            state.isPlaying = false;
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
+            
+            const avg = Math.round(state.times.reduce((a,b)=>a+b,0) / state.times.length);
+            const accuracy = Math.round(((state.times.length) / (state.times.length + state.errors)) * 100);
+            
+            document.getElementById('overlay-icon').innerHTML = '<i class="fa-solid fa-trophy text-yellow-400"></i>';
+            document.getElementById('overlay-title').innerText = "Treino Concluído!";
+            document.getElementById('overlay-desc').innerHTML = `
+                <div class="grid grid-cols-2 gap-4 w-full max-w-xs mb-4">
+                    <div class="bg-slate-800 p-2 rounded">
+                        <div class="text-xs text-slate-400">Média</div>
+                        <div class="text-xl font-bold text-indigo-400">${avg}ms</div>
+                    </div>
+                    <div class="bg-slate-800 p-2 rounded">
+                        <div class="text-xs text-slate-400">Precisão</div>
+                        <div class="text-xl font-bold ${accuracy > 90 ? 'text-green-400' : 'text-orange-400'}">${accuracy}%</div>
+                    </div>
+                </div>
+                Seu cérebro está mais rápido!
+            `;
+            startBtn.innerText = "Jogar Novamente";
+        }
+
+        function updateStats() {
+            if (state.times.length > 0) {
+                const avg = Math.round(state.times.reduce((a,b)=>a+b,0) / state.times.length);
+                avgDisplay.innerText = avg;
+            }
+        }
+    </script>
+</body>
+</html>
