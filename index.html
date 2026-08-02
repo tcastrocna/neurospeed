@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NeuroSpeed - 高级反应力训练</title>
+    <title>NeuroSpeed</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -46,7 +46,6 @@
 
         .block:active { transform: scale(0.92); }
         
-        /* 动画效果 */
         @keyframes popIn {
             0% { transform: scale(0); opacity: 0; }
             70% { transform: scale(1.1); }
@@ -54,7 +53,6 @@
         }
         .animate-pop { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
 
-        /* 颜色定义 - 用于干扰和 targets */
         .c-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: 2px solid #60a5fa; }
         .c-red { background: linear-gradient(135deg, #ef4444, #b91c1c); border: 2px solid #f87171; }
         .c-green { background: linear-gradient(135deg, #22c55e, #15803d); border: 2px solid #4ade80; }
@@ -63,13 +61,11 @@
         .c-orange { background: linear-gradient(135deg, #f97316, #c2410c); border: 2px solid #fb923c; }
         .c-cyan { background: linear-gradient(135deg, #06b6d4, #0e7490); border: 2px solid #67e8f9; }
         
-        /* 干扰块稍微暗一点或透明度不同，增加辨识难度 */
         .distractor { opacity: 0.85; }
     </style>
 </head>
 <body class="h-screen w-screen flex flex-col items-center justify-center p-4">
 
-    <!-- 顶部状态栏 -->
     <div class="w-full max-w-md flex justify-between items-center mb-4 z-20 px-2">
         <div class="flex items-center gap-2">
             <i class="fa-solid fa-brain text-indigo-400 text-xl animate-pulse"></i>
@@ -81,10 +77,8 @@
         </div>
     </div>
 
-    <!-- 游戏主区域 -->
     <div class="relative w-full max-w-md aspect-[3/4] md:aspect-square glass-panel rounded-3xl overflow-hidden flex flex-col shadow-2xl">
         
-        <!-- 指令条 -->
         <div class="absolute top-0 w-full p-4 bg-gradient-to-b from-slate-900/95 to-transparent z-10 flex justify-between items-center pointer-events-none">
             <div class="text-xs text-slate-400 uppercase tracking-widest">Objetivo</div>
             <div id="target-instruction" class="px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-sm font-bold shadow-lg transition-all duration-300">
@@ -92,10 +86,8 @@
             </div>
         </div>
 
-        <!-- 网格容器 -->
         <div id="game-grid"></div>
 
-        <!-- 遮罩层 (开始/结束/提示) -->
         <div id="overlay" class="absolute inset-0 z-30 bg-slate-900/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center transition-opacity duration-300">
             <div id="overlay-icon" class="text-6xl mb-6 text-indigo-500 drop-shadow-lg">
                 <i class="fa-solid fa-play"></i>
@@ -106,7 +98,6 @@
                 Clique <strong>apenas</strong> na cor solicitada o mais rápido possível.
             </p>
             
-            <!-- 难度选择 -->
             <div class="grid grid-cols-3 gap-3 w-full max-w-xs mb-8">
                 <button onclick="setDiff('easy')" class="diff-btn p-3 rounded-xl bg-slate-800 border border-slate-700 hover:border-green-500 hover:bg-green-500/10 transition group">
                     <div class="text-green-400 font-bold">Fácil</div>
@@ -129,7 +120,6 @@
     </div>
 
     <script>
-        // 游戏配置与状态
         const COLORS = [
             { id: 'blue', class: 'c-blue', name: 'AZUL' },
             { id: 'red', class: 'c-red', name: 'VERMELHO' },
@@ -156,7 +146,6 @@
             errors: 0
         };
 
-        // DOM 元素
         const gridEl = document.getElementById('game-grid');
         const overlay = document.getElementById('overlay');
         const startBtn = document.getElementById('start-btn');
@@ -165,7 +154,6 @@
         const avgDisplay = document.getElementById('avg-display');
         const diffBtns = document.querySelectorAll('.diff-btn');
 
-        // 初始化
         function setDiff(d) {
             state.diff = d;
             diffBtns.forEach(btn => {
@@ -193,17 +181,14 @@
             overlay.classList.add('opacity-0', 'pointer-events-none');
             
             const config = SETTINGS[state.diff];
-            // 随着等级提升，网格可能变大（简单实现：固定网格，增加颜色复杂度）
             let currentGrid = config.grid;
-            if (state.level > 5 && state.diff !== 'hard') currentGrid = 4; // 中级后期变大
+            if (state.level > 5 && state.diff !== 'hard') currentGrid = 4; 
             
             const totalBlocks = currentGrid * currentGrid;
             
-            // 确定本关使用的颜色池
             const pool = COLORS.slice(0, Math.min(COLORS.length, config.colors + Math.floor(state.level/3)));
             state.targetColor = pool[Math.floor(Math.random() * pool.length)];
             
-            // 更新UI指令
             levelDisplay.innerText = state.level;
             instructionEl.innerHTML = `<span class="${state.targetColor.class.replace('c-', 'text-')} font-black drop-shadow-md">${state.targetColor.name}</span>`;
             
@@ -227,17 +212,15 @@
                 if (isTarget) {
                     colorClass = state.targetColor.class;
                 } else {
-                    // 关键改进：干扰块也是彩色的！
                     const distractorColors = colorPool.filter(c => c.id !== state.targetColor.id);
                     const randomColor = distractorColors[Math.floor(Math.random() * distractorColors.length)] || COLORS[0];
                     colorClass = randomColor.class;
-                    block.classList.add('distractor'); // 标记为干扰项，样式上可以微调
+                    block.classList.add('distractor'); 
                 }
                 
                 block.classList.add(colorClass);
                 block.style.animationDelay = `${Math.random() * 0.2}s`;
                 
-                // 绑定事件
                 const handleTap = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -258,7 +241,6 @@
             const reaction = Math.round(now - state.startTime);
             
             if (isTarget) {
-                // 成功
                 state.times.push(reaction);
                 el.style.transform = 'scale(1.2) brightness(1.5)';
                 el.style.zIndex = '10';
@@ -274,7 +256,6 @@
                     }
                 }, 500);
             } else {
-                // 失败 - 干扰项点击
                 state.errors++;
                 el.style.opacity = '0.2';
                 el.style.transform = 'scale(0.8)';
